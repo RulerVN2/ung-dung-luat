@@ -6,7 +6,7 @@ Ra: <tên_ngắn>.pages.json  (từng trang: số trang, nguồn 'text'|'ocr', n
     <tên_ngắn>.txt         (nội dung nối lại, để đưa vào bộ tách cấu trúc)
 """
 import json
-import os
+import os, re
 import subprocess
 import sys
 import tempfile
@@ -29,10 +29,19 @@ def text_layer(pdf, p):
     return r.stdout.decode('utf-8', 'replace')
 
 
+STAMP = re.compile(r'(Người ký|Ký bởi|Email|Cơ quan|Thời\s*gian ký|Signature|Ký ngày)', re.I)
+
+
+def real_chars(txt):
+    # bỏ các dòng của dấu chữ ký số (trang scan có lớp chữ chỉ chứa dấu ký)
+    lines = [l for l in txt.splitlines() if not STAMP.search(l)]
+    return len(''.join(''.join(lines).split()))
+
+
 def ocr_page(args):
     pdf, p, tessdir = args
     txt = text_layer(pdf, p)
-    if len(''.join(txt.split())) >= MIN_CHARS:
+    if real_chars(txt) >= MIN_CHARS:
         return {'page': p, 'source': 'text', 'text': txt}
     with tempfile.TemporaryDirectory() as tmp:
         base = os.path.join(tmp, 'pg')

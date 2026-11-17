@@ -40,7 +40,7 @@ button{cursor:pointer}
 .sec{padding:6px 8px 2px 28px;font-size:12px;font-weight:600;color:var(--muted)}
 .art{display:flex;gap:8px;width:100%;text-align:left;border:0;background:transparent;border-radius:8px;padding:8px 10px 8px 28px;line-height:1.4;font-size:14px}
 .art:hover{background:#E8E4D8}
-.art .n{flex:none;width:58px;color:var(--muted);white-space:nowrap}
+.art .n{flex:none;min-width:58px;color:var(--muted);white-space:nowrap}
 .art[aria-current="true"]{background:var(--accent-soft);color:var(--accent-dk);font-weight:600}
 .art .mk{margin-left:auto;color:var(--accent);flex:none;display:inline-flex;align-items:center}
 .group[hidden]{display:none}
@@ -164,11 +164,12 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
     }
     return -1;
   }
+  function lab(a) { return a.label || ('Điều ' + a.no); }
   function flatText(a) {
     var parts = [a.title];
     if (a.intro) parts.push(a.intro);
     a.clauses.forEach(function (c) {
-      parts.push(c.no + '. ' + c.text);
+      parts.push((c.no ? c.no + '. ' : '') + c.text);
       c.points.forEach(function (p) { parts.push(p.label + ') ' + p.text); });
     });
     return parts.join(' ');
@@ -294,7 +295,7 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
       h.appendChild(el('b', null, d.title));
       h.appendChild(el('span', null, [d.so_hieu, d.tinh_trang].filter(Boolean).join(' · ')));
       root.appendChild(h);
-      var lastCh = null, lastSec = null, group = null;
+      var lastCh = undefined, lastSec = null, group = null;  // undefined: văn bản không có Chương vẫn tạo nhóm đầu tiên
       d.articles.forEach(function (a) {
         var chKey = d.id + '|' + (a.chapter || '');
         if (a.chapter !== lastCh) {
@@ -304,7 +305,7 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
           btn.type = 'button';
           var ar = el('span', 'arrow'); ar.appendChild(icon('chevron', false, 14));
           btn.appendChild(ar);
-          btn.appendChild(el('span', null, a.chapter ? ('CHƯƠNG ' + a.chapter + (ch && ch.title ? ' · ' + ch.title : '')) : 'NỘI DUNG'));
+          btn.appendChild(el('span', null, a.chapter === 'PL' ? 'PHỤ LỤC' : a.chapter ? ('CHƯƠNG ' + a.chapter + (ch && ch.title ? ' · ' + ch.title : '')) : 'NỘI DUNG'));
           group = el('div', 'group');
           group.dataset.ch = chKey;
           var expanded = !!openChap[chKey];
@@ -326,7 +327,7 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
           group.appendChild(el('div', 'sec', 'Mục ' + a.section + (sc && sc.title ? ' · ' + sc.title : '')));
         }
         var b = el('button', 'art'); b.type = 'button'; b.dataset.key = a.key;
-        b.appendChild(el('span', 'n', 'Điều ' + a.no));
+        b.appendChild(el('span', 'n', lab(a)));
         b.appendChild(el('span', null, a.title));
         if (store.marks[a.key]) b.appendChild(starEl());
         b.addEventListener('click', function () { openArticle(a, true); });
@@ -388,12 +389,12 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
     var q = state.query;
     if (!q.trim()) { p.appendChild(el('div', 'empty', 'Gõ từ khóa vào ô tìm kiếm phía trên. Gõ không dấu vẫn tìm được.')); return; }
     var r = runSearch(q); state.tokens = r.tokens;
-    p.appendChild(el('div', 'count', r.res.length + ' Điều chứa "' + q.trim() + '"' + (r.res.length > 100 ? ' (hiện 100 kết quả đầu)' : '')));
-    if (!r.res.length) p.appendChild(el('div', 'empty', 'Không có Điều nào chứa đủ các từ này. Thử rút gọn từ khóa.'));
+    p.appendChild(el('div', 'count', r.res.length + ' mục chứa "' + q.trim() + '"' + (r.res.length > 100 ? ' (hiện 100 kết quả đầu)' : '')));
+    if (!r.res.length) p.appendChild(el('div', 'empty', 'Không có mục nào chứa đủ các từ này. Thử rút gọn từ khóa.'));
     r.res.slice(0, 100).forEach(function (x) {
       var c = el('button', 'card'); c.type = 'button';
       if (state.cur && state.cur.key === x.a.key) c.setAttribute('aria-current', 'true');
-      c.appendChild(el('span', 'ref', x.a.doc.title + ' › Điều ' + x.a.no + '. ' + x.a.title));
+      c.appendChild(el('span', 'ref', x.a.doc.title + ' › ' + lab(x.a) + (x.a.title ? '. ' + x.a.title : '')));
       hlPhraseOnly = r.tokens.length > 1 && findTok(x.a.norm, r.tokens.join(' '), 0, true) >= 0;
       var sn = el('span', 'snip'); appendHL(sn, snippetOf(x.a, r.tokens), r.tokens); c.appendChild(sn);
       c.addEventListener('click', function () { openArticle(x.a, true); });
@@ -409,7 +410,7 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
     list.forEach(function (a) {
       var c = el('button', 'card'); c.type = 'button';
       if (state.cur && state.cur.key === a.key) c.setAttribute('aria-current', 'true');
-      c.appendChild(el('span', 'ref', a.doc.title + ' › Điều ' + a.no));
+      c.appendChild(el('span', 'ref', a.doc.title + ' › ' + lab(a)));
       c.appendChild(el('span', null, a.title));
       var nt = store.notes[a.key];
       if (nt) c.appendChild(el('span', 'nt', nt.length > 110 ? nt.slice(0, 110) + '…' : nt));
@@ -423,12 +424,12 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
     var a = state.cur, r = $('reader'); r.textContent = '';
     var w = el('div', 'wrap');
     var crumb = [a.doc.title];
-    if (a.chapter) crumb.push('Chương ' + a.chapter);
+    if (a.chapter === 'PL') crumb.push('Phụ lục'); else if (a.chapter) crumb.push('Chương ' + a.chapter);
     if (a.section) crumb.push('Mục ' + a.section);
     w.appendChild(el('div', 'crumb', crumb.join(' › ')));
     var tokens = state.tab === 'search' ? state.tokens : [];
     hlPhraseOnly = tokens.length > 1 && findTok(a.norm, tokens.join(' '), 0, true) >= 0;
-    var h = el('h2'); h.appendChild(document.createTextNode('Điều ' + a.no + '. ')); appendHL(h, a.title, tokens); w.appendChild(h);
+    var h = el('h2'); h.appendChild(document.createTextNode(lab(a) + (a.title ? '. ' : ''))); appendHL(h, a.title, tokens); w.appendChild(h);
     var act = el('div', 'actions');
     var bm = iconBtn('btn' + (store.marks[a.key] ? ' on' : ''), 'bookmark', store.marks[a.key] ? 'Đã đánh dấu' : 'Đánh dấu', !!store.marks[a.key]);
     bm.setAttribute('aria-pressed', store.marks[a.key] ? 'true' : 'false');
@@ -441,11 +442,12 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
     var nb = iconBtn('btn', 'note', 'Đến ghi chú');
     nb.addEventListener('click', function () { var t = $('note'); if (t) { t.scrollIntoView({ block: 'center' }); t.focus(); } });
     act.appendChild(bm); act.appendChild(cp); act.appendChild(nb); w.appendChild(act);
+    if (a.appendix) w.appendChild(el('div', 'warn', 'Đây là Phụ lục: bảng biểu, công thức và khung mẫu có thể bị mất định dạng khi chuyển thành chữ. Hãy xem bản gốc (PDF) khi cần dùng đúng mẫu.'));
     if (a.ocr) w.appendChild(el('div', 'warn', 'Điều này có nội dung lấy từ bản scan bằng nhận dạng chữ (OCR), nên có thể còn lỗi chữ hoặc dấu. Hãy đối chiếu bản gốc khi trích dẫn.'));
     var t = el('div', 'text');
     if (a.intro) { var ip = el('p'); appendHL(ip, a.intro, tokens); t.appendChild(ip); }
     a.clauses.forEach(function (c) {
-      var p = el('p'); p.appendChild(el('span', 'no', c.no + '. ')); appendHL(p, c.text, tokens); t.appendChild(p);
+      var p = el('p'); if (c.no) p.appendChild(el('span', 'no', c.no + '. ')); appendHL(p, c.text, tokens); t.appendChild(p);
       c.points.forEach(function (pt) {
         var q = el('p', 'diem'); q.appendChild(el('span', 'no', pt.label + ') ')); appendHL(q, pt.text, tokens); t.appendChild(q);
       });
@@ -461,10 +463,10 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
     r.appendChild(w);
   }
   function plainText(a) {
-    var out = [a.doc.title + ' - Điều ' + a.no + '. ' + a.title];
+    var out = [a.doc.title + ' - ' + lab(a) + (a.title ? '. ' + a.title : '')];
     if (a.intro) out.push(a.intro);
     a.clauses.forEach(function (c) {
-      out.push(c.no + '. ' + c.text);
+      out.push((c.no ? c.no + '. ' : '') + c.text);
       c.points.forEach(function (p) { out.push('   ' + p.label + ') ' + p.text); });
     });
     return out.join('\n');

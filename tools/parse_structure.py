@@ -16,7 +16,9 @@ import sys
 
 CHUONG = re.compile(r'^Chương\s+([IVXLCDMl1|Ï]+)\s*$')
 MUC = re.compile(r'^Mục\s+(\d+|[lI|Ï]+)\s*$')
-DIEU = re.compile(r'^Đi\S{0,3}\s+([0-9lIÏ|]{1,3}[a-z]?)\s*[.,]\s+(.+)$')
+DIEU = re.compile(r'^Đi\S{0,3}\s+([0-9lIÏ|]{1,3}[a-z]?)\s*(?:[.,]\s+|\.(?=[A-ZÀ-ỸĐ]))(.+)$')
+PHULUC = re.compile(r'^(?:\d{1,2}\s+)?(?:PH[UỤ]\s*L[UỤ]C|Ph[uụ]\s*l[uụạ]c)\s+([IVXl0-9]{1,5}[A-Z]?)\s*[:.]?\s*$')  # dòng tiêu đề Phụ lục
+END_TITLE = re.compile(r'^(Điều khoản thi hành|Hiệu lực thi hành|Tổ chức thực hiện|Trách nhiệm thi hành|Hiệu lực và trách nhiệm)', re.I)
 KHOAN = re.compile(r'^([0-9lIÏ|!]{1,3})\s*[.,]\s+(.*)$')
 DIEM = re.compile(r'^([a-zđ])\)\s+(.*)$')
 NOISE_LEAD = re.compile(r'^[.·•,;:~=>_|\s]+(?=[0-9A-Za-zÀ-ỹ“"])')
@@ -40,6 +42,7 @@ def is_upper_title(line):
 
 def parse(lines):
     chapters, articles, warnings = [], [], []
+    apps, cur_app, end_seen = [], None, False
     cur_chapter = cur_section = None
     art = clause = point = None
     pending = None
@@ -58,6 +61,16 @@ def parse(lines):
     for raw in lines:
         line = NOISE_LEAD.sub('', raw.strip())  # bỏ ký tự rác OCR đầu dòng (.., ~, =, >)
         if not line or PAGE_NO.match(line):
+            continue
+
+        if end_seen and not in_q:
+            pm = PHULUC.match(line)
+            if pm:  # từ đây trở đi là Phụ lục: không tách Điều/Khoản nữa
+                cur_app = {'ident': pm.group(1).strip(), 'lines': []}
+                apps.append(cur_app)
+                continue
+        if cur_app is not None:
+            cur_app['lines'].append(line)
             continue
 
         if in_q:
@@ -115,6 +128,7 @@ def parse(lines):
             articles.append(art)
             clause = point = None
             title_open = True
+            end_seen = bool(END_TITLE.match(art['title']))
             continue
         if art is None:
             continue
@@ -145,7 +159,26 @@ def parse(lines):
                 continue
         append(line)
 
-    return chapters, articles, warnings
+    return chapters, articles, warnings, apps
+
+
+def finish_appendix(app, idx, seen):
+    """Chuyển Phụ lục thô thành tiêu đề + các đoạn (nối dòng bị ngắt do xuống dòng)."""
+    lines = list(app['lines'])
+    title_parts = []
+    while lines and len(title_parts) < 3 and is_upper_title(lines[0]) and not lines[0].startswith('('):
+        title_parts.append(lines.pop(0))
+    paras = []
+    for ln in lines:
+        if paras and not re.search(r'[.;:!?”)]$', paras[-1]) and not re.match(r'^([-–•]|\d+[.)]|[a-zđ]\)|[A-ZÀ-ỸĐ])', ln):
+            paras[-1] += ' ' + ln
+        else:
+            paras.append(ln)
+    ident = app['ident'] or str(idx)
+    seen[ident] = seen.get(ident, 0) + 1
+    if seen[ident] > 1:
+        ident += ' (%d)' % seen[ident]  # số Phụ lục lặp (thường do OCR đọc sai số La Mã)
+    return {'label': 'Phụ lục ' + ident, 'ident': ident, 'title': ' '.join(title_parts), 'paragraphs': paras}
 
 
 def check(articles, warnings):
@@ -168,14 +201,17 @@ def main():
     src, dst = sys.argv[1], sys.argv[2]
     with open(src, encoding='utf-8') as f:
         lines = f.read().splitlines()
-    chapters, articles, warnings = parse(lines)
+    chapters, articles, warnings, apps = parse(lines)
     warnings = check(articles, warnings)
+    seen = {}
+    appendices = [finish_appendix(a, i + 1, seen) for i, a in enumerate(apps)]
     with open(dst, 'w', encoding='utf-8') as f:
-        json.dump({'chapters': chapters, 'articles': articles, 'warnings': warnings}, f, ensure_ascii=False, indent=1)
+        json.dump({'chapters': chapters, 'articles': articles, 'appendices': appendices, 'warnings': warnings},
+                  f, ensure_ascii=False, indent=1)
     n_clauses = sum(len(a['clauses']) for a in articles)
     n_points = sum(len(c['points']) for a in articles for c in a['clauses'])
-    print('Chương: %d | Điều: %d | Khoản: %d | Điểm: %d | Cảnh báo: %d' % (
-        len(chapters), len(articles), n_clauses, n_points, len(warnings)))
+    print('Chương: %d | Điều: %d | Khoản: %d | Điểm: %d | Phụ lục: %d | Cảnh báo: %d' % (
+        len(chapters), len(articles), n_clauses, n_points, len(appendices), len(warnings)))
     for w in warnings[:6]:
         print(' -', w)
 

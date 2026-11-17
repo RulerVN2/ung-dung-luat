@@ -57,7 +57,10 @@ def article_pages(articles, pages):
                 e = start[k]
                 break
         flags.append(any(src.get(p) == 'ocr' for p in range(s, e + 1)))
-    return flags
+    # trang bắt đầu của Điều cuối cùng được dò thấy: Phụ lục nằm sau đó
+    first = next((s for s in reversed(start) if s is not None), None)
+    tail_ocr = bool(first) and any(src.get(p) == 'ocr' for p in range(first, last_page + 1))
+    return flags, tail_ocr
 
 
 def build_doc(entry, base_dir):
@@ -66,7 +69,7 @@ def build_doc(entry, base_dir):
     if entry.get('pages'):
         pages = json.load(open(os.path.join(base_dir, entry['pages']), encoding='utf-8'))
     articles = structure['articles']
-    flags = article_pages(articles, pages) if pages else [False] * len(articles)
+    flags, tail_ocr = article_pages(articles, pages) if pages else ([False] * len(articles), False)
     seen = {}
     out = []
     for a, ocr in zip(articles, flags):
@@ -76,6 +79,12 @@ def build_doc(entry, base_dir):
         out.append({
             'key': key, 'no': a['no'], 'title': a['title'], 'intro': a['intro'],
             'clauses': a['clauses'], 'chapter': a['chapter'], 'section': a['section'], 'ocr': ocr,
+        })
+    for i, ap in enumerate(structure.get('appendices', []), 1):
+        out.append({
+            'key': '%s/pl-%d' % (entry['id'], i), 'no': 'PL%d' % i, 'label': ap['label'], 'title': ap['title'],
+            'intro': '', 'clauses': [{'no': '', 'text': t, 'points': []} for t in ap['paragraphs']],
+            'chapter': 'PL', 'section': None, 'ocr': tail_ocr, 'appendix': True,
         })
     doc = {k: entry.get(k) for k in ('id', 'title', 'so_hieu', 'loai', 'ban_hanh', 'hieu_luc', 'co_quan',
                                       'tinh_trang', 'ghi_chu_hieu_luc')}
