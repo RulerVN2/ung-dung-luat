@@ -71,3 +71,13 @@ File `so-tay.html` mở bằng Chrome hoặc Edge, không cần mạng, không c
 
 - Đọc câu "sửa đổi, bổ sung khoản X Điều Y như sau" từ văn bản sửa đổi và áp vào văn bản gốc, giữ lịch sử.
 - Công cụ nhập văn bản có giao diện (hiện chạy bằng dòng lệnh).
+
+
+## Cập nhật khi có văn bản sửa đổi (bản thử)
+
+```
+python3 -I tools/amend_propose.py propose <sua_doi>.json <goc>.json <de_xuat>.json 1
+python3 -I tools/amend_propose.py report  <de_xuat>.json <bao_cao>.html
+python3 -I tools/amend_propose.py apply   <goc>.json <de_xuat>.json <ids_duyet>.json <goc_moi>.json
+```
+Công cụ chỉ đề xuất, không tự quyết. Lệnh nào không chắc vị trí thì ghi `xem_tay` kèm lý do. Chạy thử Nghị định 243/2026 → Nghị định 57/2025: 53 lệnh, 35 đề xuất được, 18 cần xem tay.
