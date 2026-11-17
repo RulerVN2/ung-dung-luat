@@ -442,6 +442,10 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
     var nb = iconBtn('btn', 'note', 'Đến ghi chú');
     nb.addEventListener('click', function () { var t = $('note'); if (t) { t.scrollIntoView({ block: 'center' }); t.focus(); } });
     act.appendChild(bm); act.appendChild(cp); act.appendChild(nb); w.appendChild(act);
+    if (a.lich_su && a.lich_su.length) {
+      var ls = {}; a.lich_su.forEach(function (h) { ls[h.van_ban || 'một văn bản sửa đổi'] = 1; });
+      w.appendChild(el('div', 'warn', 'Nội dung Điều này đã được cập nhật theo ' + Object.keys(ls).join('; ') + ' (do người quản trị sổ tay duyệt). Hãy đối chiếu văn bản sửa đổi khi trích dẫn.'));
+    }
     if (a.appendix) w.appendChild(el('div', 'warn', 'Đây là Phụ lục: bảng biểu, công thức và khung mẫu có thể bị mất định dạng khi chuyển thành chữ. Hãy xem bản gốc (PDF) khi cần dùng đúng mẫu.'));
     if (a.ocr) w.appendChild(el('div', 'warn', 'Điều này có nội dung lấy từ bản scan bằng nhận dạng chữ (OCR), nên có thể còn lỗi chữ hoặc dấu. Hãy đối chiếu bản gốc khi trích dẫn.'));
     var t = el('div', 'text');

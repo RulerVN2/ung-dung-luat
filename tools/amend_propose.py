@@ -305,7 +305,7 @@ def build_op(i, text, ctx, base, so_hieu):
     return d
 
 
-def cmd_propose(src, base_path, out, only):
+def cmd_propose(src, base_path, out, only, ten=''):
     sua = json.load(open(src, encoding='utf-8'))
     base = json.load(open(base_path, encoding='utf-8'))
     ops = []
@@ -316,7 +316,7 @@ def cmd_propose(src, base_path, out, only):
             continue
         for uid, text, ctx in units(art):
             ops.append(build_op('Đ%s.%s' % (art['no'], uid), text, ctx, base, ''))
-    json.dump({'nguon': src, 'goc': base_path, 'de_xuat': ops}, open(out, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+    json.dump({'nguon': src, 'goc': base_path, 'ten_sua_doi': ten, 'de_xuat': ops}, open(out, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     tu = sum(1 for o in ops if o['trang_thai'] == 'tu_dong')
     print('Tổng số lệnh: %d | đề xuất được (tu_dong): %d | cần xem tay: %d' % (len(ops), tu, len(ops) - tu))
 
@@ -344,17 +344,32 @@ def cmd_report(path, out):
         t = o.get('dich') or {}
         tgt = ' · '.join(x for x in ['Điều %s' % t['dieu'] if t.get('dieu') else '', 'khoản %s' % t['khoan'] if t.get('khoan') else '', 'điểm %s' % t['diem'] if t.get('diem') else ''] if x)
         cls = 'ok' if o['trang_thai'] == 'tu_dong' else 'no'
-        rows.append('<section class=%s><h3>%s <small>%s · %s</small></h3><p class=g>%s</p>%s%s</section>' % (
-            cls, esc(o['id']), esc(o['loai']), esc(tgt), esc(o['goc']), body,
+        chk = ('<label class=k><input type=checkbox data-id="%s"> Duyệt</label>' % esc(o['id'])) if o['trang_thai'] == 'tu_dong' else ''
+        rows.append('<section class=%s>' % cls + chk + '<h3>%s <small>%s · %s</small></h3><p class=g>%s</p>%s%s</section>' % (
+            esc(o['id']), esc(o['loai']), esc(tgt), esc(o['goc']), body,
             ('<p class=w>%s</p>' % esc(o['ly_do'])) if o['ly_do'] else ''))
     doc = ('<!doctype html><meta charset=utf-8><title>Đề xuất cập nhật sửa đổi</title><style>'
            'body{font:15px/1.5 system-ui,sans-serif;max-width:1000px;margin:20px auto;padding:0 16px;color:#222}'
            'section{border:1px solid #d8d3c4;border-radius:8px;padding:10px 14px;margin:10px 0}section.no{background:#fff7e0}'
            'h3{margin:0 0 4px;font-size:15px}small{color:#777;font-weight:400}.g{color:#555;margin:2px 0 6px}.w{color:#9a5b00;margin:6px 0 0}'
            '.c{margin:6px 0}.b{background:#fde8e8;padding:6px;border-radius:5px;margin:3px 0;white-space:pre-wrap}'
-           '.a{background:#e6f4ea;padding:6px;border-radius:5px;white-space:pre-wrap}</style>'
+           '.a{background:#e6f4ea;padding:6px;border-radius:5px;white-space:pre-wrap}'
+           '.k{float:right;font-weight:600;cursor:pointer}#bar{position:sticky;top:0;background:#fff;border-bottom:1px solid #d8d3c4;padding:8px 0;z-index:2}'
+           'button{font:inherit;padding:6px 12px;border:1px solid #888;border-radius:6px;background:#f3f1e8;cursor:pointer}</style>'
            '<h1>Đề xuất cập nhật theo văn bản sửa đổi</h1><p>Đỏ: nội dung hiện có. Xanh: nội dung đề xuất. '
-           'Khung vàng: cần xem tay. Chỉ áp dụng sau khi bạn đối chiếu bản gốc.</p>' + ''.join(rows))
+           'Khung vàng: cần xem tay. Chỉ tick "Duyệt" sau khi bạn đối chiếu bản gốc.</p>'
+           '<div id=bar><span id=n>Đã duyệt: 0</span> &nbsp; <button id=all>Tick tất cả đề xuất</button> '
+           '<button id=none>Bỏ tick hết</button> <button id=exp>Xuất danh sách đã duyệt (.json)</button></div>' + ''.join(rows) +
+           '<script>(function(){var K="duyet:"+document.title+location.pathname;var cs=[].slice.call(document.querySelectorAll("input[data-id]"));'
+           'var saved={};try{saved=JSON.parse(localStorage.getItem(K)||"{}")}catch(e){}'
+           'function upd(){var o={};cs.forEach(function(c){if(c.checked)o[c.dataset.id]=1});try{localStorage.setItem(K,JSON.stringify(o))}catch(e){}'
+           'document.getElementById("n").textContent="Đã duyệt: "+Object.keys(o).length+"/"+cs.length}'
+           'cs.forEach(function(c){c.checked=!!saved[c.dataset.id];c.addEventListener("change",upd)});upd();'
+           'document.getElementById("all").onclick=function(){cs.forEach(function(c){c.checked=true});upd()};'
+           'document.getElementById("none").onclick=function(){cs.forEach(function(c){c.checked=false});upd()};'
+           'document.getElementById("exp").onclick=function(){var ids=cs.filter(function(c){return c.checked}).map(function(c){return c.dataset.id});'
+           'var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(ids)],{type:"application/json"}));'
+           'a.download="duyet.json";a.click()}})()</script>')
     open(out, 'w', encoding='utf-8').write(doc)
     print('Đã ghi', out)
 
@@ -410,8 +425,9 @@ def cmd_apply(base_path, prop_path, ids_path, out):
                 idx = [i for i, x in enumerate(new['articles']) if x['no'] == after.group(1)][0]
                 n['chapter'], n['section'] = new['articles'][idx]['chapter'], new['articles'][idx]['section']
             new['articles'].insert(idx + 1, n)
+            art = n
         if art is not None:
-            art.setdefault('lich_su', []).append({'lenh': o['id'], 'goc': o['goc'][:160]})
+            art.setdefault('lich_su', []).append({'van_ban': prop.get('ten_sua_doi', ''), 'lenh': o['id'], 'goc': o['goc'][:160]})
         done += 1
     json.dump(new, open(out, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     print('Đã áp dụng %d/%d đề xuất đã duyệt' % (done, len(ids)))
@@ -420,7 +436,8 @@ def cmd_apply(base_path, prop_path, ids_path, out):
 def main():
     a = sys.argv[1:]
     if len(a) >= 4 and a[0] == 'propose':
-        cmd_propose(a[1], a[2], a[3], set(a[4:]))
+        ten = next((x[4:] for x in a[4:] if x.startswith('ten=')), '')
+        cmd_propose(a[1], a[2], a[3], set(x for x in a[4:] if not x.startswith('ten=')), ten)
     elif len(a) == 3 and a[0] == 'report':
         cmd_report(a[1], a[2])
     elif len(a) == 5 and a[0] == 'apply':

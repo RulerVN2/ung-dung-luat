@@ -79,6 +79,7 @@ def build_doc(entry, base_dir):
         out.append({
             'key': key, 'no': a['no'], 'title': a['title'], 'intro': a['intro'],
             'clauses': a['clauses'], 'chapter': a['chapter'], 'section': a['section'], 'ocr': ocr,
+            'lich_su': a.get('lich_su', []),
         })
     for i, ap in enumerate(structure.get('appendices', []), 1):
         out.append({
