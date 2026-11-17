@@ -1,0 +1,21 @@
+{
+  "cap_nhat_den": "17/11/2026",
+  "van_ban": [
+    {
+      "id": "luat-dien-luc-2024",
+      "title": "Luật Điện lực 2024",
+      "so_hieu": "61/2024/QH15",
+      "loai": "Luật",
+      "ban_hanh": "30/11/2024",
+      "hieu_luc": "01/02/2025",
+      "co_quan": "Quốc hội",
+      "tinh_trang": "Chưa xác nhận",
+      "ghi_chu_hieu_luc": "Bạn tự xác nhận tình trạng hiệu lực rồi sửa dòng \"tinh_trang\" thành \"Còn hiệu lực\", \"Hết hiệu lực một phần\" hoặc \"Hết hiệu lực\".",
+      "lien_quan": [
+        {"quan_he": "Thay thế", "ten": "Luật Điện lực 28/2004/QH11 và các luật sửa đổi (theo Điều 80 của Luật)"}
+      ],
+      "structure": "du-lieu/luat-dien-luc-2024.json",
+      "pages": "du-lieu/luat-dien-luc-2024.pages.json"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+# Không đưa văn bản gốc, dữ liệu đã tách hay sách đã dựng lên repo
+*.pdf
+*.zip
+du-lieu/
+out/
+data/
+so-tay*.html
+*.traineddata
+__pycache__/
+*.pyc
