@@ -6,7 +6,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
 <title>Sổ tay Luật Điện lực</title>
 <style>
-:root{--ink:#1D2330;--paper:#FBFAF6;--side:#F2EFE7;--line:#DDD8CB;--accent:#1B4F8A;--accent-dk:#12365F;--accent-soft:#DCE6F3;--muted:#4A5160;--mark:#FFE27A;--ui:"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--read:Georgia,"Times New Roman",serif}
+:root{--ink:#1D2330;--paper:#FBFAF6;--side:#F2EFE7;--line:#DDD8CB;--accent:#1B4F8A;--accent-dk:#12365F;--accent-soft:#DCE6F3;--muted:#4A5160;--mark:#FFE27A;--ui:"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--read:"Times New Roman","Liberation Serif","Noto Serif",serif}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{font-family:var(--ui);color:var(--ink);background:var(--paper);font-size:15px}
@@ -54,13 +54,13 @@ mark{background:var(--mark);color:var(--ink);padding:0 1px;border-radius:2px}
 #reader{overflow-y:auto;padding:28px 48px 48px;min-width:0}
 #reader .wrap{max-width:700px}
 .crumb{font-size:13px;color:var(--muted)}
-#reader h2{font-family:var(--read);font-size:28px;line-height:1.3;margin:14px 0 0;color:#12274A}
+#reader h2{font-family:var(--read);letter-spacing:0;font-size:30px;line-height:1.3;margin:14px 0 0;color:#12274A}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .btn{height:36px;padding:0 14px;border-radius:8px;border:1px solid #B9B2A0;background:#fff;font-weight:600;font-size:13px}
 .btn:hover{border-color:var(--accent)}
 .btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .warn{margin-top:18px;padding:10px 14px;background:#FFF4D6;border:1px solid #E6C766;border-radius:8px;font-size:13px;color:#6B4300}
-.text{margin-top:20px;font-family:var(--read);font-size:17px;line-height:1.8}
+.text{margin-top:20px;font-family:var(--read);font-size:19px;line-height:1.7;letter-spacing:0;word-spacing:0;font-kerning:normal;text-rendering:optimizeLegibility;font-variant-ligatures:none}
 .text p{margin:0 0 12px}
 .text .no{font-weight:700}
 .text .diem{padding-left:28px}
@@ -93,7 +93,7 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
  body.menu-open #side{transform:none}
  #reader{padding:20px 18px 32px;overflow:visible}
  #reader h2{font-size:24px}
- .text{font-size:16px}
+ .text{font-size:18px}
  #info{border-left:0;border-top:1px solid var(--line)}
  .top .upd{display:none}
 }
