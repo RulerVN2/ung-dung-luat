@@ -30,8 +30,18 @@ button{cursor:pointer}
 .tabs button[aria-selected="true"]{background:#fff;color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
 .panel{flex:1;min-height:0;overflow-y:auto;padding:10px 10px 20px}
 .panel[hidden]{display:none}
-.doc-h{padding:10px 8px 6px}
-.doc-h b{display:block;font-size:14px}
+.doc-h{display:flex;gap:8px;align-items:flex-start;width:100%;text-align:left;border:0;border-top:1px solid var(--line);background:transparent;padding:10px 8px 8px;border-radius:0;cursor:pointer}
+.doc-h:hover{background:#E8E4D8}
+.doc-h .arrow{flex:none;width:14px;display:inline-flex;margin-top:3px;transition:transform .15s}
+.doc-h[aria-expanded="true"] .arrow{transform:rotate(90deg)}
+.doc-h[aria-expanded="true"]{background:#EFEBDD}
+.doc-h .tx{display:block;min-width:0}
+.doc-body[hidden],.doc-h[hidden]{display:none}
+.searchbox label.chk{display:flex;gap:6px;align-items:center;margin:8px 0 0;font-weight:500}
+.searchbox label.chk input{width:auto;height:auto}
+.searchbox .gap{margin-top:10px}
+.grp{padding:10px 8px 4px;font-size:12px;font-weight:700;color:var(--accent-dk)}
+.doc-h b{display:block;font-size:14px;line-height:1.35}
 .doc-h span{font-size:12px;color:var(--muted)}
 .chap{display:flex;gap:8px;align-items:flex-start;width:100%;text-align:left;border:0;background:transparent;padding:8px 8px;border-radius:8px;font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.02em}
 .chap:hover{background:#E8E4D8}
@@ -125,8 +135,11 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
  <div class="body">
   <aside id="side" aria-label="Mục lục và tìm kiếm">
    <div class="searchbox">
-    <label for="q">Tìm trong tất cả văn bản</label>
+    <label for="qd">1. Tìm văn bản (tên, số hiệu)</label>
+    <input id="qd" type="search" placeholder="Ví dụ: 57/2025, giấy phép, thông tư" autocomplete="off">
+    <label for="q" class="gap" id="qlab">2. Tìm nội dung trong văn bản</label>
     <input id="q" type="search" placeholder="Gõ từ khóa, có dấu hoặc không dấu" autocomplete="off">
+    <label class="chk"><input type="checkbox" id="onlyCur"> Chỉ tìm trong văn bản đang mở</label>
    </div>
    <div class="tabs" role="tablist">
     <button type="button" role="tab" id="t-toc" aria-selected="true" data-tab="toc">Mục lục</button>
@@ -282,7 +295,7 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
     if (pos < text.length) parent.appendChild(document.createTextNode(text.slice(pos)));
   }
 
-  var state = { tab: 'toc', cur: null, tokens: [], query: '' };
+  var state = { tab: 'toc', cur: null, tokens: [], query: '', openDoc: null, docQuery: '' };
 
   function setTab(name) {
     state.tab = name;
@@ -299,10 +312,15 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
   function renderToc() {
     var root = $('p-toc'); root.textContent = '';
     docs.forEach(function (d) {
-      var h = el('div', 'doc-h');
-      h.appendChild(el('b', null, d.title));
-      h.appendChild(el('span', null, [d.so_hieu, d.tinh_trang].filter(Boolean).join(' · ')));
+      var h = el('button', 'doc-h'); h.type = 'button'; h.dataset.doc = d.id;
+      var har = el('span', 'arrow'); har.appendChild(icon('chevron', false, 14)); h.appendChild(har);
+      var htx = el('span', 'tx');
+      htx.appendChild(el('b', null, d.title));
+      htx.appendChild(el('span', null, [d.so_hieu, d.tinh_trang].filter(Boolean).join(' · ')));
+      h.appendChild(htx);
+      h.addEventListener('click', function () { toggleDoc(d); });
       root.appendChild(h);
+      var body = el('div', 'doc-body'); body.dataset.doc = d.id; root.appendChild(body);
       var lastCh = undefined, lastSec = null, group = null;  // undefined: văn bản không có Chương vẫn tạo nhóm đầu tiên
       d.articles.forEach(function (a) {
         var chKey = d.id + '|' + (a.chapter || '');
@@ -326,7 +344,7 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
               g.hidden = !ex; openChap[k] = ex;
             });
           })(btn, group, chKey);
-          root.appendChild(btn); root.appendChild(group);
+          body.appendChild(btn); body.appendChild(group);
         }
         if (a.section && a.section !== lastSec) {
           lastSec = a.section;
@@ -342,7 +360,39 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
         group.appendChild(b);
       });
     });
+    applyDocState();
     markCurrentInToc();
+  }
+  function docById(id) { return docs.filter(function (d) { return d.id === id; })[0]; }
+  function applyDocState() {
+    var tk = tokensOf(state.docQuery), shown = 0;
+    docs.forEach(function (d) {
+      var hay = norm([d.title, d.so_hieu, d.loai, d.co_quan, d.tinh_trang].filter(Boolean).join(' '));
+      var ok = tk.every(function (t) { return findTok(hay, t, 0, true) >= 0; });
+      var h = $('p-toc').querySelector('.doc-h[data-doc="' + d.id + '"]');
+      var b = $('p-toc').querySelector('.doc-body[data-doc="' + d.id + '"]');
+      if (!h || !b) return;
+      var open = state.openDoc === d.id;
+      h.hidden = !ok; b.hidden = !ok || !open;
+      h.setAttribute('aria-expanded', open && ok ? 'true' : 'false');
+      if (ok) shown++;
+    });
+    var info = $('docCount');
+    if (info) info.textContent = tk.length ? (shown + ' văn bản khớp') : '';
+  }
+  function setOpenDoc(id) {
+    if (state.openDoc === id) return;
+    state.openDoc = id; applyDocState();
+    var d = docById(id); $('q').placeholder = 'Ưu tiên tìm trong ' + (d ? (d.so_hieu || d.title) : 'văn bản đang mở');
+    if (state.tab === 'search' && state.query.trim()) renderSearch();
+  }
+  function toggleDoc(d) {
+    if (state.openDoc === d.id) { state.openDoc = null; applyDocState(); return; }
+    setOpenDoc(d.id);
+    var h = $('p-toc').querySelector('.doc-h[data-doc="' + d.id + '"]');
+    if (h && h.scrollIntoView) h.scrollIntoView({ block: 'start' });
+    if (d.articles.length && (!state.cur || state.cur.doc.id !== d.id)) openArticle(d.articles[0], true);
+    if (h && h.scrollIntoView) h.scrollIntoView({ block: 'start' });
   }
   function markCurrentInToc() {
     var btns = $('p-toc').querySelectorAll('.art');
@@ -355,6 +405,7 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
       if (!marked && star) btns[i].removeChild(star);
     }
     if (state.cur) {
+      setOpenDoc(state.cur.doc.id);
       var g = $('p-toc').querySelector('.art[aria-current="true"]');
       if (g && g.parentNode.hidden) {
         g.parentNode.hidden = false;
@@ -397,9 +448,23 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
     var q = state.query;
     if (!q.trim()) { p.appendChild(el('div', 'empty', 'Gõ từ khóa vào ô tìm kiếm phía trên. Gõ không dấu vẫn tìm được.')); return; }
     var r = runSearch(q); state.tokens = r.tokens;
-    p.appendChild(el('div', 'count', r.res.length + ' mục chứa "' + q.trim() + '"' + (r.res.length > 100 ? ' (hiện 100 kết quả đầu)' : '')));
+    var totalN = ($('onlyCur').checked && state.openDoc) ? r.res.filter(function (x) { return x.a.doc.id === state.openDoc; }).length : r.res.length;
+    p.appendChild(el('div', 'count', totalN + ' mục chứa "' + q.trim() + '"' + (totalN > 100 ? ' (hiện 100 kết quả đầu)' : '')));
     if (!r.res.length) p.appendChild(el('div', 'empty', 'Không có mục nào chứa đủ các từ này. Thử rút gọn từ khóa.'));
-    r.res.slice(0, 100).forEach(function (x) {
+    var curId = state.openDoc, onlyCur = $('onlyCur').checked && curId;
+    var inCur = r.res.filter(function (x) { return x.a.doc.id === curId; });
+    var others = onlyCur ? [] : r.res.filter(function (x) { return x.a.doc.id !== curId; });
+    var cd = docById(curId);
+    var ordered = [];
+    if (cd) ordered.push({ h: 'Trong văn bản đang mở: ' + (cd.so_hieu || cd.title) + ' (' + inCur.length + ')' });
+    inCur.forEach(function (x) { ordered.push(x); });
+    if (!onlyCur && cd) ordered.push({ h: 'Ở văn bản khác (' + others.length + ')' });
+    others.forEach(function (x) { ordered.push(x); });
+    if (onlyCur && cd && !inCur.length) p.appendChild(el('div', 'empty', 'Không có kết quả trong văn bản đang mở. Bỏ chọn "Chỉ tìm trong văn bản đang mở" để tìm ở mọi văn bản.'));
+    var shownN = 0;
+    ordered.forEach(function (x) {
+      if (x.h) { p.appendChild(el('div', 'grp', x.h)); return; }
+      if (++shownN > 100) return;
       var c = el('button', 'card'); c.type = 'button';
       if (state.cur && state.cur.key === x.a.key) c.setAttribute('aria-current', 'true');
       c.appendChild(el('span', 'ref', x.a.doc.title + ' › ' + lab(x.a) + (x.a.title ? '. ' + x.a.title : '')));
@@ -633,6 +698,23 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
     b.addEventListener('click', function () { setTab(b.dataset.tab); });
   });
   $('menuBtn').addEventListener('click', function () { document.body.classList.toggle('menu-open'); });
+  var dq = $('qd');
+  var dcount = el('div', 'count'); dcount.id = 'docCount'; dq.parentNode.insertBefore(dcount, $('qlab'));
+  var dqTimer = null;
+  dq.addEventListener('input', function (e) {
+    state.docQuery = e.target.value;
+    clearTimeout(dqTimer);
+    dqTimer = setTimeout(function () {
+      if (state.tab !== 'toc') setTab('toc');
+      var tk = tokensOf(state.docQuery);
+      if (tk.length) {  // chỉ còn một văn bản khớp thì tự mở ra
+        var m = docs.filter(function (d) { var hay = norm([d.title, d.so_hieu, d.loai, d.co_quan, d.tinh_trang].filter(Boolean).join(' ')); return tk.every(function (t) { return findTok(hay, t, 0, true) >= 0; }); });
+        if (m.length === 1) state.openDoc = m[0].id;
+      }
+      applyDocState();
+    }, 150);
+  });
+  $('onlyCur').addEventListener('change', function () { if (state.query.trim()) { setTab('search'); renderSearch(); } });
   var qTimer = null;
   $('q').addEventListener('input', function (e) {
     state.query = e.target.value;
