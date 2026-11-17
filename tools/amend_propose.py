@@ -427,7 +427,11 @@ def cmd_apply(base_path, prop_path, ids_path, out):
             new['articles'].insert(idx + 1, n)
             art = n
         if art is not None:
-            art.setdefault('lich_su', []).append({'van_ban': prop.get('ten_sua_doi', ''), 'lenh': o['id'], 'goc': o['goc'][:160]})
+            entry = {'van_ban': prop.get('ten_sua_doi', ''), 'lenh': o['id'], 'goc': o['goc'][:160]}
+            old = find_article(base, art['no'])
+            if old is not None and not art.get('lich_su'):  # bản cũ: chỉ giữ một lần, trước lần sửa đầu tiên
+                entry['ban_cu'] = {'title': old['title'], 'intro': old['intro'], 'clauses': copy.deepcopy(old['clauses'])}
+            art.setdefault('lich_su', []).append(entry)
         done += 1
     json.dump(new, open(out, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     print('Đã áp dụng %d/%d đề xuất đã duyệt' % (done, len(ids)))

@@ -62,6 +62,13 @@ mark{background:var(--mark);color:var(--ink);padding:0 1px;border-radius:2px}
 .btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:8px;border:1px solid #B9B2A0;background:#fff;font-weight:600;font-size:13px}
 .btn:hover{border-color:var(--accent)}
 .btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.news{margin-left:auto;background:transparent;color:#FFD34D;border:1px solid #FFD34D;border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer}
+.news+.upd{margin-left:12px}
+details.old{margin-top:14px;border:1px solid #D8D3C4;border-radius:8px;padding:8px 14px;background:#FAF8F2}
+details.old summary{cursor:pointer;font-weight:600;font-size:13.5px}
+details.old .ot{margin-top:8px;font-size:15px;line-height:1.6;color:#444}
+.vers h3{margin:22px 0 4px;font-size:16px}.vers .d{color:var(--muted);font-size:13px}
+.vers ul{margin:6px 0 0;padding-left:20px}.vers li{margin:3px 0}.vers a{color:var(--accent-dk);cursor:pointer;text-decoration:underline}
 .warn{margin-top:18px;padding:10px 14px;background:#FFF4D6;border:1px solid #E6C766;border-radius:8px;font-size:13px;color:#6B4300}
 .text{margin-top:20px;font-family:var(--read);font-size:19px;line-height:1.7;letter-spacing:0;word-spacing:0;font-kerning:normal;text-rendering:optimizeLegibility;font-variant-ligatures:none}
 .text p{margin:0 0 12px}
@@ -112,6 +119,7 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
   <button class="menu" id="menuBtn" type="button" aria-label="Mở hoặc đóng mục lục">Mục lục</button>
   <svg class="logo" width="26" height="26" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#1B4F8A"></rect><path d="M36 8 16 36h14l-3 20 21-30H34z" fill="#FFD34D"></path></svg>
   <h1>Sổ tay Luật Điện lực</h1>
+  <button class="news" id="newsBtn" type="button">Có gì mới</button>
   <span class="upd" id="upd"></span>
  </header>
  <div class="body">
@@ -406,7 +414,8 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
   function renderMarks() {
     var p = $('p-marks'); p.textContent = '';
     var list = arts.filter(function (a) { return store.marks[a.key]; });
-    if (!list.length) { p.appendChild(el('div', 'empty', 'Chưa đánh dấu Điều nào. Bấm "Đánh dấu" ở phần đọc để lưu lại.')); return; }
+    var orphans = Object.keys(Object.assign({}, store.marks, store.notes)).filter(function (k) { return !byKey[k]; });
+    if (!list.length && !orphans.length) { p.appendChild(el('div', 'empty', 'Chưa đánh dấu Điều nào. Bấm "Đánh dấu" ở phần đọc để lưu lại.')); return; }
     list.forEach(function (a) {
       var c = el('button', 'card'); c.type = 'button';
       if (state.cur && state.cur.key === a.key) c.setAttribute('aria-current', 'true');
@@ -417,6 +426,18 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
       c.addEventListener('click', function () { openArticle(a, true); });
       p.appendChild(c);
     });
+    if (orphans.length) {
+      p.appendChild(el('div', 'empty', 'Mục không còn trong sổ tay (đã bị bãi bỏ hoặc đổi số). Ghi chú của bạn vẫn được giữ:'));
+      orphans.forEach(function (k) {
+        var c = el('div', 'card');
+        c.appendChild(el('span', 'ref', k));
+        if (store.notes[k]) c.appendChild(el('span', 'nt', store.notes[k]));
+        var del = el('button', 'btn', 'Xóa'); del.type = 'button';
+        del.addEventListener('click', function () { delete store.marks[k]; delete store.notes[k]; save(); renderMarks(); });
+        c.appendChild(del);
+        p.appendChild(c);
+      });
+    }
   }
 
   // ---------- Đọc ----------
@@ -445,6 +466,20 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
     if (a.lich_su && a.lich_su.length) {
       var ls = {}; a.lich_su.forEach(function (h) { ls[h.van_ban || 'một văn bản sửa đổi'] = 1; });
       w.appendChild(el('div', 'warn', 'Nội dung Điều này đã được cập nhật theo ' + Object.keys(ls).join('; ') + ' (do người quản trị sổ tay duyệt). Hãy đối chiếu văn bản sửa đổi khi trích dẫn.'));
+    }
+    var oldv = (a.lich_su || []).filter(function (h) { return h.ban_cu; })[0];
+    if (oldv) {
+      var dt = el('details', 'old');
+      dt.appendChild(el('summary', null, 'Xem bản trước khi sửa (theo ' + (oldv.van_ban || 'văn bản sửa đổi') + ')'));
+      var ot = el('div', 'ot');
+      var oc = oldv.ban_cu;
+      ot.appendChild(el('p', null, lab(a) + '. ' + oc.title));
+      if (oc.intro) ot.appendChild(el('p', null, oc.intro));
+      oc.clauses.forEach(function (c) {
+        ot.appendChild(el('p', null, (c.no ? c.no + '. ' : '') + c.text));
+        (c.points || []).forEach(function (p2) { ot.appendChild(el('p', null, '   ' + p2.label + ') ' + p2.text)); });
+      });
+      dt.appendChild(ot); w.appendChild(dt);
     }
     if (a.appendix) w.appendChild(el('div', 'warn', 'Đây là Phụ lục: bảng biểu, công thức và khung mẫu có thể bị mất định dạng khi chuyển thành chữ. Hãy xem bản gốc (PDF) khi cần dùng đúng mẫu.'));
     if (a.ocr) w.appendChild(el('div', 'warn', 'Điều này có nội dung lấy từ bản scan bằng nhận dạng chữ (OCR), nên có thể còn lỗi chữ hoặc dấu. Hãy đối chiếu bản gốc khi trích dẫn.'));
@@ -543,8 +578,8 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
     rd.onload = function () {
       try {
         var o = JSON.parse(rd.result), n = 0;
-        Object.keys(o.marks || {}).forEach(function (k) { if (byKey[k]) { store.marks[k] = true; n++; } });
-        Object.keys(o.notes || {}).forEach(function (k) { if (byKey[k] && typeof o.notes[k] === 'string') { store.notes[k] = o.notes[k]; n++; } });
+        Object.keys(o.marks || {}).forEach(function (k) { store.marks[k] = true; n++; });
+        Object.keys(o.notes || {}).forEach(function (k) { if (typeof o.notes[k] === 'string') { store.notes[k] = o.notes[k]; n++; } });
         save(); renderToc(); renderInfo(); renderMarks(); toast('Đã nhập ' + n + ' mục');
       } catch (e) { toast('File không đúng định dạng ghi chú'); }
     };
@@ -570,7 +605,30 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
     b.appendChild(icon(tabIcons[b.dataset.tab], false, 15)); b.appendChild(lab);
   });
   (function () { var m = $('menuBtn'), lab = el('span', null, m.textContent); m.textContent = ''; m.appendChild(icon('menu', false, 18)); m.appendChild(lab); })();
-  $('upd').textContent = DATA.cap_nhat_den ? 'Cập nhật đến ngày ' + DATA.cap_nhat_den : '';
+  $('upd').textContent = (DATA.phien_ban ? 'Phiên bản ' + DATA.phien_ban + ' · ' : '') + (DATA.cap_nhat_den ? 'Cập nhật đến ngày ' + DATA.cap_nhat_den : '');
+  $('newsBtn').style.display = (DATA.thay_doi && DATA.thay_doi.length) ? '' : 'none';
+  $('newsBtn').addEventListener('click', function () {
+    state.cur = null; markCurrentInToc();
+    var r = $('reader'); r.textContent = '';
+    var w = el('div', 'wrap vers');
+    w.appendChild(el('h2', null, 'Có gì mới'));
+    DATA.thay_doi.forEach(function (v) {
+      w.appendChild(el('h3', null, 'Phiên bản ' + v.phien_ban));
+      w.appendChild(el('div', 'd', v.ngay || ''));
+      var ul = el('ul');
+      (v.muc || []).forEach(function (m) {
+        var li = el('li');
+        if (m.key && byKey[m.key]) {
+          var a = el('a', null, m.noi_dung); a.addEventListener('click', function () { openArticle(byKey[m.key], true); });
+          li.appendChild(a);
+        } else li.appendChild(document.createTextNode(m.noi_dung));
+        ul.appendChild(li);
+      });
+      w.appendChild(ul);
+    });
+    r.appendChild(w); r.scrollTop = 0;
+    document.body.classList.remove('menu-open');
+  });
   document.querySelectorAll('.tabs button').forEach(function (b) {
     b.addEventListener('click', function () { setTab(b.dataset.tab); });
   });

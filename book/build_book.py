@@ -100,7 +100,8 @@ def main():
     base_dir = os.path.dirname(os.path.abspath(meta_path))
     meta = json.load(open(meta_path, encoding='utf-8'))
     docs = [build_doc(e, base_dir) for e in meta['van_ban']]
-    data = nfc({'docs': docs, 'cap_nhat_den': meta.get('cap_nhat_den') or date.today().strftime('%d/%m/%Y')})
+    data = nfc({'docs': docs, 'cap_nhat_den': meta.get('cap_nhat_den') or date.today().strftime('%d/%m/%Y'),
+                'phien_ban': meta.get('phien_ban', ''), 'thay_doi': meta.get('thay_doi', [])})
     blob = json.dumps(data, ensure_ascii=False, separators=(',', ':'))
     blob = blob.replace('</', '<\\/').replace('\u2028', '\\u2028').replace('\u2029', '\\u2029')
     tpl = open(os.path.join(HERE, 'template.html'), encoding='utf-8').read()
