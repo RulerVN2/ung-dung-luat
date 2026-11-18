@@ -80,6 +80,7 @@ def build_doc(entry, base_dir):
             'key': key, 'no': a['no'], 'title': a['title'], 'intro': a['intro'],
             'clauses': a['clauses'], 'chapter': a['chapter'], 'section': a['section'], 'ocr': ocr,
             'lich_su': a.get('lich_su', []),
+            **{k: a[k] for k in ('sd_title', 'sd_intro', 'sd_all', 'sd_bo') if a.get(k)},
         })
     for i, ap in enumerate(structure.get('appendices', []), 1):
         out.append({

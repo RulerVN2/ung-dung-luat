@@ -375,6 +375,16 @@ def cmd_report(path, out):
 
 
 # ---- áp dụng ----------------------------------------------------------------------------------------
+def add_mark(obj, key, mark):
+    """Gắn dấu 'được sửa đổi' vào đúng đoạn chữ để sổ tay tô vàng và hiện nội dung khi đưa chuột vào."""
+    obj.setdefault(key, []).append(mark)
+
+
+def head_of(text, n=300):
+    h = text.split('như sau')[0].strip().rstrip(':') if 'như sau' in text else text
+    return (h[:n] + '…') if len(h) > n else h
+
+
 def cmd_apply(base_path, prop_path, ids_path, out):
     base = json.load(open(base_path, encoding='utf-8'))
     prop = json.load(open(prop_path, encoding='utf-8'))
@@ -393,32 +403,53 @@ def cmd_apply(base_path, prop_path, ids_path, out):
                 for label, obj, k in fields:
                     if obj[k] == c['truoc']:
                         obj[k] = c['sau']
+                        if o['loai'] == 'thay_cum':
+                            mt, cum = 'Thay cụm từ “%s” bằng “%s”' % (o['cu'], o['moi']), o['moi']
+                        elif o['loai'] == 'bo_cum':
+                            mt, cum = 'Bỏ cụm từ “%s”' % o['cu'], None
+                        else:
+                            mt = 'Bổ sung cụm từ “%s” vào %s cụm từ “%s”' % (o['moi'], 'trước' if o['loai'] == 'them_cum_truoc' else 'sau', o['moc'])
+                            cum = o['moi']
+                        add_mark(obj, 'sd' if k == 'text' else 'sd_' + k, {'ten': prop.get('ten_sua_doi', ''), 'lenh': o['id'], 'mo_ta': mt, 'cum': cum})
             art = a
         elif 'thay_dieu' in dp:
             a = find_article(new, dp['thay_dieu']['dieu'])
             n = dp['cau_truc_moi']
             a['title'], a['intro'], a['clauses'] = n['title'], n['intro'], n['clauses']
+            add_mark(a, 'sd_all', {'ten': prop.get('ten_sua_doi', ''), 'lenh': o['id'], 'mo_ta': head_of(o['goc']) + ' (toàn bộ Điều được thay bằng nội dung mới)', 'cum': None})
             art = a
         elif 'sua_ten' in dp:
             a = find_article(new, dp['sua_ten']['dieu'])
             a['title'] = dp['sau']
+            add_mark(a, 'sd_title', {'ten': prop.get('ten_sua_doi', ''), 'lenh': o['id'], 'mo_ta': head_of(o['goc']), 'cum': None})
             art = a
         elif 'thay_muc' in dp:
             a = find_article(new, dp['thay_muc']['dieu'])
             fields, _ = scope_fields(a, dp['thay_muc'].get('khoan'), dp['thay_muc'].get('diem'))
-            fields[0][1][fields[0][2]] = dp['sau']
+            newtxt = dp['sau']
+            tgt = fields[0][1]
+            if 'label' in tgt:  # nhãn a), b)... đã có sẵn ở khung Điểm
+                newtxt = re.sub(r'^\s*[a-zđ]\d?\)\s*', '', newtxt)
+            elif 'no' in tgt:
+                newtxt = re.sub(r'^\s*\d+\s*[.,]\s+', '', newtxt)
+            tgt[fields[0][2]] = newtxt
+            add_mark(fields[0][1], 'sd', {'ten': prop.get('ten_sua_doi', ''), 'lenh': o['id'], 'mo_ta': head_of(o['goc']), 'cum': None})
             art = a
         elif 'bai_bo' in dp:
             t = dp['bai_bo']
             a = find_article(new, t['dieu'])
             if t.get('khoan'):
+                gone = [c for c in a['clauses'] if c['no'] == t['khoan']]
                 a['clauses'] = [c for c in a['clauses'] if c['no'] != t['khoan']]
+                add_mark(a, 'sd_bo', {'ten': prop.get('ten_sua_doi', ''), 'lenh': o['id'], 'mo_ta': 'Bãi bỏ khoản %s' % t['khoan'],
+                                       'khoan': t['khoan'], 'truoc': gone[0]['text'] if gone else ''})
                 art = a
             else:
                 new['articles'] = [x for x in new['articles'] if x is not a]
         elif 'noi_dung' in dp and dp['chen'].get('dieu') and not dp['chen'].get('khoan'):
             n = split_inline(dp['noi_dung'])
             n.update(chapter=None, section=None)
+            add_mark(n, 'sd_all', {'ten': prop.get('ten_sua_doi', ''), 'lenh': o['id'], 'mo_ta': head_of(o['goc']), 'cum': None})
             idx = max([i for i, x in enumerate(new['articles']) if x['no'] != n['no']] or [0])
             after = re.search(r'vào sau Điều\s+(\d+[a-z]?)', dp.get('vi_tri_chen', ''))
             if after:

@@ -72,6 +72,13 @@ mark{background:var(--mark);color:var(--ink);padding:0 1px;border-radius:2px}
 .btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:8px;border:1px solid #B9B2A0;background:#fff;font-weight:600;font-size:13px}
 .btn:hover{border-color:var(--accent)}
 .btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.sd{background:#FFE98A;border-bottom:2px solid #E0A800;border-radius:3px;cursor:help;padding:0 1px}
+.sd.bo{display:block;margin-top:10px;padding:6px 10px;font-size:14px}
+.art.sd-art{box-shadow:inset 3px 0 0 #F2C230}
+.art .sdm{flex:none;margin-left:auto;background:#FFE98A;border:1px solid #E0A800;color:#6B4300;border-radius:6px;padding:0 5px;font-size:11px;font-weight:700;line-height:18px;align-self:flex-start}
+#tip{position:fixed;z-index:60;max-width:440px;background:#2B2B2B;color:#fff;border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.5;box-shadow:0 6px 20px rgba(0,0,0,.3);pointer-events:none;display:none}
+#tip b{display:block;color:#FFD34D;margin-bottom:4px}
+#tip .t{margin-top:6px;color:#ddd}
 .news{margin-left:auto;background:transparent;color:#FFD34D;border:1px solid #FFD34D;border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer}
 .news+.upd{margin-left:12px}
 details.old{margin-top:14px;border:1px solid #D8D3C4;border-radius:8px;padding:8px 14px;background:#FAF8F2}
@@ -265,6 +272,28 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
   }
 
   var hlPhraseOnly = false;
+  var sdMap = [];
+  function sdSpan(text, tokens, m, cls) {
+    var sp = el('span', 'sd' + (cls ? ' ' + cls : '')); sdMap.push(m); sp.dataset.sd = String(sdMap.length - 1);
+    appendHL(sp, text, tokens); return sp;
+  }
+  function appendRich(parent, text, tokens, marks) {
+    if (!marks || !marks.length) { appendHL(parent, text, tokens); return; }
+    var whole = marks.filter(function (m) { return !m.cum; })[0];
+    if (whole) { parent.appendChild(sdSpan(text, tokens, whole)); return; }
+    var spans = [];
+    marks.forEach(function (m) { var i = 0; while ((i = text.indexOf(m.cum, i)) >= 0) { spans.push([i, i + m.cum.length, m]); i += m.cum.length; } });
+    if (!spans.length) { parent.appendChild(sdSpan(text, tokens, marks[0])); return; }
+    spans.sort(function (a, b) { return a[0] - b[0]; });
+    var pos = 0;
+    spans.forEach(function (r) {
+      if (r[0] < pos) return;
+      if (r[0] > pos) appendHL(parent, text.slice(pos, r[0]), tokens);
+      parent.appendChild(sdSpan(text.slice(r[0], r[1]), tokens, r[2]));
+      pos = r[1];
+    });
+    if (pos < text.length) appendHL(parent, text.slice(pos), tokens);
+  }
   function appendHL(parent, text, tokens) {
     if (!tokens || !tokens.length) { parent.appendChild(document.createTextNode(text)); return; }
     var n = norm(text), ranges = [];
@@ -355,6 +384,7 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
         var b = el('button', 'art'); b.type = 'button'; b.dataset.key = a.key;
         b.appendChild(el('span', 'n', lab(a)));
         b.appendChild(el('span', null, a.title));
+        if (a.lich_su && a.lich_su.length) { b.classList.add('sd-art'); var sm = el('span', 'sdm', 'Sửa'); sm.title = 'Điều này đã được sửa đổi, bổ sung'; b.appendChild(sm); }
         if (store.marks[a.key]) b.appendChild(starEl());
         b.addEventListener('click', function () { openArticle(a, true); });
         group.appendChild(b);
@@ -515,7 +545,8 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
     w.appendChild(el('div', 'crumb', crumb.join(' › ')));
     var tokens = state.tab === 'search' ? state.tokens : [];
     hlPhraseOnly = tokens.length > 1 && findTok(a.norm, tokens.join(' '), 0, true) >= 0;
-    var h = el('h2'); h.appendChild(document.createTextNode(lab(a) + (a.title ? '. ' : ''))); appendHL(h, a.title, tokens); w.appendChild(h);
+    sdMap = [];
+    var h = el('h2'); h.appendChild(document.createTextNode(lab(a) + (a.title ? '. ' : ''))); appendRich(h, a.title, tokens, (a.sd_title || []).concat(a.sd_all || [])); w.appendChild(h);
     var act = el('div', 'actions');
     var bm = iconBtn('btn' + (store.marks[a.key] ? ' on' : ''), 'bookmark', store.marks[a.key] ? 'Đã đánh dấu' : 'Đánh dấu', !!store.marks[a.key]);
     bm.setAttribute('aria-pressed', store.marks[a.key] ? 'true' : 'false');
@@ -530,7 +561,7 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
     act.appendChild(bm); act.appendChild(cp); act.appendChild(nb); w.appendChild(act);
     if (a.lich_su && a.lich_su.length) {
       var ls = {}; a.lich_su.forEach(function (h) { ls[h.van_ban || 'một văn bản sửa đổi'] = 1; });
-      w.appendChild(el('div', 'warn', 'Nội dung Điều này đã được cập nhật theo ' + Object.keys(ls).join('; ') + ' (do người quản trị sổ tay duyệt). Hãy đối chiếu văn bản sửa đổi khi trích dẫn.'));
+      w.appendChild(el('div', 'warn', 'Nội dung Điều này đã được cập nhật theo ' + Object.keys(ls).join('; ') + ' (do người quản trị sổ tay duyệt). Phần tô vàng là chỗ được sửa đổi, đưa chuột vào để xem nội dung sửa đổi. Hãy đối chiếu văn bản sửa đổi khi trích dẫn.'));
     }
     var oldv = (a.lich_su || []).filter(function (h) { return h.ban_cu; })[0];
     if (oldv) {
@@ -549,12 +580,17 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
     if (a.appendix) w.appendChild(el('div', 'warn', 'Đây là Phụ lục: bảng biểu, công thức và khung mẫu có thể bị mất định dạng khi chuyển thành chữ. Hãy xem bản gốc (PDF) khi cần dùng đúng mẫu.'));
     if (a.ocr) w.appendChild(el('div', 'warn', 'Điều này có nội dung lấy từ bản scan bằng nhận dạng chữ (OCR), nên có thể còn lỗi chữ hoặc dấu. Hãy đối chiếu bản gốc khi trích dẫn.'));
     var t = el('div', 'text');
-    if (a.intro) { var ip = el('p'); appendHL(ip, a.intro, tokens); t.appendChild(ip); }
+    if (a.intro) { var ip = el('p'); appendRich(ip, a.intro, tokens, (a.sd_intro || []).concat(a.sd_all || [])); t.appendChild(ip); }
     a.clauses.forEach(function (c) {
-      var p = el('p'); if (c.no) p.appendChild(el('span', 'no', c.no + '. ')); appendHL(p, c.text, tokens); t.appendChild(p);
+      var p = el('p'); if (c.no) p.appendChild(el('span', 'no', c.no + '. ')); appendRich(p, c.text, tokens, (c.sd || []).concat(a.sd_all || [])); t.appendChild(p);
       c.points.forEach(function (pt) {
-        var q = el('p', 'diem'); q.appendChild(el('span', 'no', pt.label + ') ')); appendHL(q, pt.text, tokens); t.appendChild(q);
+        var q = el('p', 'diem'); q.appendChild(el('span', 'no', pt.label + ') ')); appendRich(q, pt.text, tokens, (pt.sd || []).concat(a.sd_all || [])); t.appendChild(q);
       });
+    });
+    (a.sd_bo || []).forEach(function (m) {
+      var bo = el('span', 'sd bo'); sdMap.push(m); bo.dataset.sd = String(sdMap.length - 1);
+      bo.textContent = 'Khoản ' + m.khoan + ' đã bị bãi bỏ (' + (m.ten || 'văn bản sửa đổi') + '). Đưa chuột vào để xem nội dung đã bỏ.';
+      t.appendChild(bo);
     });
     w.appendChild(t);
     var nav = el('div', 'nav');
@@ -732,6 +768,27 @@ textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:
   window.addEventListener('hashchange', function () {
     var k = decodeURIComponent(location.hash.slice(1));
     if (byKey[k] && (!state.cur || state.cur.key !== k)) openArticle(byKey[k], false);
+  });
+  var tip = el('div'); tip.id = 'tip'; document.body.appendChild(tip);
+  function showTip(sp, x, y) {
+    var m = sdMap[+sp.dataset.sd]; if (!m) return;
+    tip.textContent = '';
+    tip.appendChild(el('b', null, 'Được sửa đổi bởi ' + (m.ten || 'văn bản sửa đổi')));
+    tip.appendChild(el('div', null, m.mo_ta || ''));
+    if (m.truoc) tip.appendChild(el('div', 't', 'Nội dung đã bỏ: ' + (m.truoc.length > 500 ? m.truoc.slice(0, 500) + '…' : m.truoc)));
+    tip.style.display = 'block';
+    var w = tip.offsetWidth, h = tip.offsetHeight;
+    tip.style.left = Math.max(8, Math.min(x + 14, window.innerWidth - w - 8)) + 'px';
+    tip.style.top = (y + 18 + h > window.innerHeight ? Math.max(8, y - h - 12) : y + 18) + 'px';
+  }
+  $('reader').addEventListener('mousemove', function (e) {
+    var sp = e.target.closest ? e.target.closest('.sd') : null;
+    if (sp) showTip(sp, e.clientX, e.clientY); else tip.style.display = 'none';
+  });
+  $('reader').addEventListener('mouseleave', function () { tip.style.display = 'none'; });
+  $('reader').addEventListener('click', function (e) {  // điện thoại/máy cảm ứng: chạm để xem
+    var sp = e.target.closest ? e.target.closest('.sd') : null;
+    if (sp) showTip(sp, e.clientX, e.clientY); else tip.style.display = 'none';
   });
   renderToc();
   renderSearch();
