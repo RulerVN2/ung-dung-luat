@@ -206,10 +206,33 @@ def flat(a):
     return ' '.join(parts)
 
 
-def split_inline(text):
+def split_title(head, old_title='', co_khoan=False):
+    """Tách 'Tên Điều' khỏi phần nội dung dính liền phía sau (đoạn trích bị nối thành một dòng)."""
+    head = head.strip()
+    if old_title:
+        ws = [w for w in re.split(r'\s+', nrm(old_title).strip()) if w]
+        m = re.match(r'^\s*' + r'\s+'.join(re.escape(w) for w in ws), nrm(head)) if ws else None
+        if m:
+            # tên Điều không đổi (chỉ khác dấu do OCR): giữ tên cũ trong văn bản gốc
+            return old_title.strip(), head[m.end():].strip()
+    if co_khoan:  # có khoản 1. ngay sau tên: toàn bộ đoạn trước khoản là tên Điều
+        return head, ''
+    words = head.split()
+    for i in range(3, len(words)):
+        if words[i][:1].isupper() and words[i - 1][:1].islower() and not re.search(r'[,;:]$', words[i - 1]):
+            return ' '.join(words[:i]), ' '.join(words[i:])
+    return head, ''
+
+
+def split_inline(text, old_title=''):
     """Tách đoạn trích 'Điều N. Tên ... 1. ... a) ...' (đã bị nối thành một dòng) thành Điều/Khoản/Điểm, theo dãy số."""
     text = text.strip()
     m = re.match(r'^Điều\s+(\d+[a-z]?)\s*[.,]\s*', text)
+    if not m:  # rác OCR đứng trước chữ "Điều N."
+        m2 = re.search(r'Điều\s+(\d+[a-z]?)\s*[.,]\s*', text[:40])
+        if m2:
+            text = text[m2.start():]
+            m = re.match(r'^Điều\s+(\d+[a-z]?)\s*[.,]\s*', text)
     no = m.group(1) if m else None
     rest = text[m.end():] if m else text
     # tiêu đề: đến trước khoản "1." hoặc hết
@@ -225,8 +248,7 @@ def split_inline(text):
         for i, (s, e, k) in enumerate(pos):
             body = rest[e:(pos[i + 1][0] if i + 1 < len(pos) else len(rest))].strip()
             clauses.append(_clause(k, body))
-    else:
-        intro = ''
+    title, intro = split_title(title, old_title, bool(clauses))
     return {'no': no, 'title': title.strip(), 'intro': intro, 'clauses': clauses}
 
 
@@ -291,7 +313,7 @@ def build_op(i, text, ctx, base, so_hieu):
             d['de_xuat'] = {'sua_ten': t, 'truoc': a['title'], 'sau': re.sub(r'^Điều\s+\d+[a-z]?\s*[.,]\s*', '', body)}
             d['trang_thai'] = 'tu_dong'
         elif t.get('khoan') is None and t.get('diem') is None:
-            d['de_xuat'] = {'thay_dieu': t, 'truoc': flat(a), 'sau': body, 'cau_truc_moi': split_inline(body)}
+            d['de_xuat'] = {'thay_dieu': t, 'truoc': flat(a), 'sau': body, 'cau_truc_moi': split_inline(body, a['title'])}
             d['trang_thai'] = 'tu_dong'
         else:
             fields, note = scope_fields(a, t.get('khoan'), t.get('diem'))
