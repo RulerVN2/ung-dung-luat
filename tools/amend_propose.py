@@ -458,6 +458,26 @@ def cmd_apply(base_path, prop_path, ids_path, out):
             tgt[fields[0][2]] = newtxt
             add_mark(fields[0][1], 'sd', {'ten': prop.get('ten_sua_doi', ''), 'lenh': o['id'], 'mo_ta': head_of(o['goc']), 'cum': None})
             art = a
+        elif 'thay_khoan' in dp:
+            t = dp['thay_khoan']
+            a = find_article(new, t['dieu'])
+            mo_ta = head_of(o['goc'])
+            for nc in copy.deepcopy(t['cau_truc']):
+                i = [j for j, c in enumerate(a['clauses']) if c['no'] == nc['no']][0]
+                m = {'ten': prop.get('ten_sua_doi', ''), 'lenh': o['id'], 'mo_ta': mo_ta, 'cum': None}
+                add_mark(nc, 'sd', m)
+                for p_ in nc['points']:
+                    add_mark(p_, 'sd', dict(m))
+                a['clauses'][i] = nc
+            art = a
+        elif 'thay_diem' in dp:
+            t = dp['thay_diem']
+            a = find_article(new, t['dieu'])
+            cl = [c for c in a['clauses'] if c['no'] == t['khoan']][0]
+            pt_ = [p_ for p_ in cl['points'] if p_['label'] == t['diem']][0]
+            pt_['text'] = dp['sau']
+            add_mark(pt_, 'sd', {'ten': prop.get('ten_sua_doi', ''), 'lenh': o['id'], 'mo_ta': head_of(o['goc']), 'cum': None})
+            art = a
         elif 'bai_bo' in dp:
             t = dp['bai_bo']
             a = find_article(new, t['dieu'])
