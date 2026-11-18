@@ -103,6 +103,7 @@ def classify(text, ctx):
     elif re.match(r'^Sửa đổi', text) and 'như sau' in text:
         body = tail_after_nhu_sau(text)
         nhieu = bool(re.search(r'(khoản|điểm)\s+\S+\s*(,|và)\s*(khoản|điểm)?\s*\S+\s+Điều|một số nội dung|định nghĩa', head))
+        nhieu = nhieu or len(re.findall(r'khoản\s+\d', head)) > 1 or len(re.findall(r'điểm\s+[a-zđ]\b', head)) > 1
         d.update(loai='sua_cau_truc', dich=parse_target(head, ctx), moi=body, nhieu=nhieu, head=head)
     elif re.search(r'tên\s+(Mục|Chương)|\b(Mục|Chương)\s+\d+', text) and re.match(r'^(Thay|Bổ sung|Bỏ|Sửa)', text):
         d.update(loai='xem_tay', ly_do='Lệnh nhắm vào tên Mục/Chương, công cụ chưa xử lý')
